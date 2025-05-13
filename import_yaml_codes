@@ -1,0 +1,14 @@
+import yaml
+import os
+
+def load_yaml_file(file_path):
+    """
+    Load a YAML file from the given path and return its contents as a Python dictionary or list.
+    """
+    if not os.path.isfile(file_path):
+        raise FileNotFoundError(f"❌ File not found: {D:\swathi\Test cases\yaml_file.yml}")
+
+    with open(file_path, 'r') as file:
+        yaml_data = yaml.safe_load(file)
+
+    return yaml_data
