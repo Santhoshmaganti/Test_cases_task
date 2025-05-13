@@ -2,16 +2,12 @@ provider "azurerm" {
   features {}
 }
 
-# ----------------------------
-# Resource Group (Existing)
-# ----------------------------
+# Test Case 7: Deploy Server within an existing Resource Group
 data "azurerm_resource_group" "main" {
   name = var.resource_group_name
 }
 
-# ----------------------------
-# Key Vault + CMK for BYOK
-# ----------------------------
+# Test Case 6: Deploy Server with BYOK enabled
 resource "azurerm_key_vault" "cmk_vault" {
   name                        = "cmkvault-${random_string.suffix.result}"
   location                    = data.azurerm_resource_group.main.location
@@ -38,9 +34,7 @@ resource "azurerm_key_vault_key" "byok" {
   key_opts     = ["wrapKey", "unwrapKey"]
 }
 
-# ----------------------------
-# Cosmos DB Account
-# ----------------------------
+# Test Case 2: Deploy Database with permissions (CosmosDB)
 resource "azurerm_cosmosdb_account" "main" {
   name                = "cosmos-${random_string.suffix.result}"
   location            = data.azurerm_resource_group.main.location
@@ -63,9 +57,7 @@ resource "azurerm_cosmosdb_account" "main" {
   }
 }
 
-# ----------------------------
-# Redis Cache
-# ----------------------------
+# Test Case 2: Deploy Database with permissions (Redis)
 resource "azurerm_redis_cache" "main" {
   name                = "redis-${random_string.suffix.result}"
   location            = data.azurerm_resource_group.main.location
@@ -76,9 +68,8 @@ resource "azurerm_redis_cache" "main" {
   enable_non_ssl_port = false
 }
 
-# ----------------------------
-# Virtual Machines in both regions (HA)
-# ----------------------------
+# Test Case 1: Deploy Server in both regions
+# Test Case 5: Deploy Server with HA enabled
 resource "azurerm_windows_virtual_machine" "server" {
   count               = 2
   name                = "vm-${count.index}"
@@ -88,13 +79,13 @@ resource "azurerm_windows_virtual_machine" "server" {
   admin_username      = var.vm_admin_username
   admin_password      = var.vm_admin_password
 
-  availability_zone   = "1"
+  availability_zone   = "1" # HA (Test Case 5)
 
   os_disk {
     name                 = "osdisk-${count.index}"
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
-    disk_encryption_set_id = azurerm_disk_encryption_set.byok.id
+    disk_encryption_set_id = azurerm_disk_encryption_set.byok.id  # BYOK (Test Case 6)
   }
 
   network_interface_ids = [
@@ -115,46 +106,13 @@ resource "azurerm_network_interface" "server_nic" {
   }
 }
 
-# ----------------------------
-# Networking
-# ----------------------------
-resource "azurerm_virtual_network" "main" {
-  name                = "vnet-main"
-  location            = data.azurerm_resource_group.main.location
-  resource_group_name = data.azurerm_resource_group.main.name
-  address_space       = ["10.0.0.0/16"]
-}
-
-resource "azurerm_subnet" "default" {
-  name                 = "subnet1"
-  resource_group_name  = data.azurerm_resource_group.main.name
-  virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = ["10.0.1.0/24"]
-}
-
-# ----------------------------
-# Disk Encryption Set (BYOK)
-# ----------------------------
-data "azurerm_client_config" "current" {}
-
-resource "azurerm_disk_encryption_set" "byok" {
-  name                = "byok-encryption-set"
-  location            = data.azurerm_resource_group.main.location
-  resource_group_name = data.azurerm_resource_group.main.name
-  key_vault_key_id    = azurerm_key_vault_key.byok.id
-  identity {
-    type = "SystemAssigned"
-  }
-}
-
-# ----------------------------
-# Locks
-# ----------------------------
+# Test Case 3: Deploy Server with Databases (implicit via provisioning Cosmos and Redis with VMs)
+# Test Case 4: Apply lock to servers and databases
 resource "azurerm_management_lock" "server_locks" {
-  count               = 2
-  name                = "lock-vm-${count.index}"
-  scope               = azurerm_windows_virtual_machine.server[count.index].id
-  lock_level          = "CanNotDelete"
+  count      = 2
+  name       = "lock-vm-${count.index}"
+  scope      = azurerm_windows_virtual_machine.server[count.index].id
+  lock_level = "CanNotDelete"
 }
 
 resource "azurerm_management_lock" "cosmos_lock" {
@@ -169,9 +127,36 @@ resource "azurerm_management_lock" "redis_lock" {
   lock_level = "CanNotDelete"
 }
 
-# ----------------------------
-# Random for uniqueness
-# ----------------------------
+# Networking for VMs
+resource "azurerm_virtual_network" "main" {
+  name                = "vnet-main"
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
+  address_space       = ["10.0.0.0/16"]
+}
+
+resource "azurerm_subnet" "default" {
+  name                 = "subnet1"
+  resource_group_name  = data.azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = ["10.0.1.0/24"]
+}
+
+# Test Case 6 (continued): Disk Encryption Set (BYOK)
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_disk_encryption_set" "byok" {
+  name                = "byok-encryption-set"
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
+  key_vault_key_id    = azurerm_key_vault_key.byok.id
+
+  identity {
+    type = "SystemAssigned"
+  }
+}
+
+# Random suffix for naming uniqueness
 resource "random_string" "suffix" {
   length  = 6
   upper   = false
