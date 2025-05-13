@@ -1,0 +1,43 @@
+import hcl2
+import os
+
+def load_terraform_file(file_path):
+    """
+    Load and parse a Terraform (.tf) file from your local PC.
+    Returns the content as a Python dictionary.
+    """
+    # Check if the provided file path exists
+    if not os.path.isfile(file_path):
+        raise FileNotFoundError(f"❌ File not found: {file_path}")
+
+    # Open and read the file if it exists
+    with open(file_path, 'r') as file:
+        parsed_data = hcl2.load(file)
+
+    return parsed_data
+
+
+# Example usage
+file_path1 = "D:\\swathi\\Test cases\\Terraform\\main.tf"  # Ensure the path is correct
+try:
+    terraform_data = load_terraform_file(file_path1)
+    print("Terraform file loaded successfully:")
+    print(terraform_data)
+except FileNotFoundError as e:
+    print(e)
+
+file_path2 = "D:\\swathi\\Test cases\\Terraform\\variable.tf"  # Ensure the path is correct
+try:
+    terraform_data = load_terraform_file(file_path2)
+    print("Terraform file loaded successfully:")
+    print(terraform_data)
+except FileNotFoundError as e:
+    print(e)
+
+file_path3 = "D:\\swathi\\Test cases\\Terraform\\output.tf"  # Ensure the path is correct
+try:
+    terraform_data = load_terraform_file(file_path3)
+    print("Terraform file loaded successfully:")
+    print(terraform_data)
+except FileNotFoundError as e:
+    print(e)
